@@ -6,6 +6,8 @@ import os
 import concurrent.futures
 import time
 
+# using if __name__ == "__main__" is a way of storing code that should only run
+# when this file is executed as a script
 
 if __name__ == "__main__":
     """This script reads the csv file, gets the package data from the steam api
@@ -31,9 +33,13 @@ if __name__ == "__main__":
         return response.json()
 
     def save_package_data_to_db(package_id: int, result) -> None:
+        """Save the result of the http request to sqlite database. If the
+        package data was not found by the steam api, save an entry to the
+        database with an error."""
+
         # if the package id is not found, the api returns success: False
         if not result[package_id]["success"]:
-            # save an entry to db as an error
+            # save an entry to db as an error and skip the rest of the function
             conn.execute(
                 "INSERT INTO packages (id, error) VALUES (?, ?)", (package_id, True)
             )
