@@ -3,9 +3,14 @@ import pandas
 import requests
 import sqlite3
 import os
+import asyncio
+import time
 
 # get steam api key from .env variable
-key: str | None = os.getenv("STEAM_API_KEY")
+key = os.getenv("STEAM_API_KEY")
+
+# time counter
+start_time = time.time()
 
 # open csv file and read the content
 df: pandas.DataFrame = pandas.read_csv("packages.csv")
@@ -28,6 +33,9 @@ conn.execute(
 conn.execute(
     "CREATE TABLE IF NOT EXISTS apps (id INTEGER PRIMARY KEY, name TEXT, package_id INTEGER, FOREIGN KEY(package_id) REFERENCES packages(id))"
 )
+
+# implement async requests to the code
+# https://stackoverflow.com/zquestions/45216663/how-to-make-multiple-requests-using-asyncio-in-python-3-6
 
 # for each row of the csv, excluding the header, do a get request to "http://store.steampowered.com/api/salepage/" passing the package id as a parameter in the request.
 for index, row in df.iterrows():
@@ -69,3 +77,7 @@ for index, row in df.iterrows():
                         (app_id, app_name, package_id))
 
 conn.commit()
+
+execution_time = round(time.time() - start_time, 2)
+
+print(f'Finished! This took {execution_time} seconds.')
