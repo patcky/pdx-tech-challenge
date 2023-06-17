@@ -11,5 +11,4 @@ class Package(object):
         self.platforms_linux = None
         self.release_date_coming_soon = None
         self.release_date = None
-        self.apps = []
         self.error = False
