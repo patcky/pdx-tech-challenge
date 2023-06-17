@@ -6,11 +6,11 @@ import os
 import concurrent.futures
 import time
 
-# get steam api key from .env variable
-key = os.getenv("STEAM_API_KEY")
-
 # time counter
 start_time = time.time()
+
+# get steam api key from .env variable
+key = os.getenv("STEAM_API_KEY")
 
 # open csv file and read the content
 df: pandas.DataFrame = pandas.read_csv("packages.csv")
@@ -36,16 +36,15 @@ conn.execute(
 
 def get_package_data(package_id: int) -> dict:
     """Get package data from steam api and return it as a dict"""
-    response = requests.get("http://store.steampowered.com/api/packagedetails/",
+    return requests.get("http://store.steampowered.com/api/packagedetails/",
                         params={
                             "packageids": package_id,
                             "key": key
                         }).json()
-    return response
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
 
-    futures = []
+    concurrent_http_requests = []
 
     # for each row of the csv, excluding the header, do a get request to "http://store.steampowered.com/api/salepage/" passing the package id as a parameter in the request.
     for index, row in df.iterrows():
@@ -55,46 +54,43 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         if index > 0 and index % 5 == 0: # type: ignore
             break
         # get the response and parse it as json
-        futures.append(executor.submit(get_package_data,
-                                       package_id=int(row["PACKAGEID"])))
+        concurrent_http_requests.append(
+            executor.submit(get_package_data,
+                            package_id=int(row["PACKAGEID"])))
 
-    for future in concurrent.futures.as_completed(futures):
-        print(future.result())
-        package_id = next(iter(future.result()))
+    for http_request in concurrent.futures.as_completed(concurrent_http_requests):
+        result = http_request.result()
+        package_id = next(iter(result))
         # if the package id is not found, the api returns success: False
-        if not future.result()[package_id]["success"]:
+        if not result[package_id]["success"]:
             # save an entry to db as an error
             conn.execute(
                 "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
                 (package_id, "", "", ""))
             continue
 
-        data = future.result()[package_id]["data"]
-
-        #print(data)
-        apps = data["apps"]
-        price = data["price"]
-        platforms = data["platforms"]
-        release_date = data["release_date"]
+        data = result[package_id]["data"]
 
         # save apps, price, platforms, release_date in the respective tables, incrementally
         # the id of the package is the same as the package id in the csv
         conn.execute(
             "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
-            (package_id, json.dumps(price), json.dumps(platforms),
-            json.dumps(release_date)))
+            (package_id, json.dumps(data["price"]),
+             json.dumps(data["platforms"]), json.dumps(data["release_date"])))
+
         # for each app in the package, save the app id and name in the apps table
-        for app in apps:
+        for app in data["apps"]:
             app_id = app["id"]
             app_name = app["name"]
             conn.execute("INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
                             (app_id, app_name, package_id))
 
-    for future in concurrent.futures.as_completed(futures):
-        print(future.result())
-
+# commit changes to the database
 conn.commit()
 
-execution_time = round(time.time() - start_time, 2)
+# close connection to the database
+conn.close()
 
+# print the time it took to run the script
+execution_time: float = time.time() - start_time
 print(f'Finished! This took {execution_time} seconds.')
