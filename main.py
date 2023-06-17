@@ -122,8 +122,7 @@ if __name__ == "__main__":
         # iterate over the df rows and get the package data from the steam api #
         for index, row in df.iterrows():
             print(index)
-            # impose a limit of 5 rows for the iteration, since there is a limit
-            # of 200 requests per 5 minutes in the api #
+            # limit to 5 requests per 5 minutes according to the api #
             if index > 0 and index % requests_limit == 0:
                 break  # remove this line when in production mode
                 time.sleep(300)
