@@ -45,8 +45,7 @@ Facilitate setup and running:
 - write a docker-compose file with instructions on how to build the image and run it
 
 Refactor:
-- check comments that can be replaced with more descriptive method names
+- load from env file with configuration
 - separate DB file with class functions with all db init and queries abstracted away
-- convert the release_date
-- separate env file with configuration
+- check comments that can be replaced with more descriptive method names
 - separate one file for API calls

@@ -2,6 +2,7 @@ import concurrent.futures
 import json
 import os
 import time
+from datetime import datetime
 import logging
 
 from dotenv import load_dotenv
@@ -9,24 +10,8 @@ import pandas
 import requests
 import sqlite3
 
-
-def get_package_data(package_id: int, steam_api_key: str) -> dict:
-    """Get package data from Steam API and return it as a dict"""
-    response = requests.get(
-        "http://store.steampowered.com/api/packagedetails/",
-        params={"packageids": package_id, "key": steam_api_key},
-    )
-
-    if response.status_code in [range(400, 499)]:
-        # add logging here
-        raise Exception("Error getting package data from Steam API - Bad request")
-
-    elif response.status_code in [range(500, 599)]:
-        # add logging here
-        raise Exception("Error getting package data from Steam API - Server error")
-
-    return response.json()
-
+from get-package-data import get_package_data
+from load-env import load_config
 
 def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connection) -> None:
     """Save the result of the http request to sqlite database. If the
@@ -59,7 +44,7 @@ def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connect
             data["platforms"]["mac"],
             data["platforms"]["linux"],
             data["release_date"]["coming_soon"],
-            data["release_date"]["date"],
+            datetime.strptime(data["release_date"]["date"], "%Y-%m-%d"),
         ),
     )
 
@@ -81,18 +66,6 @@ def main():
 
     # time counter
     start_time = time.time()
-
-    # load environment variables from .env file
-    load_dotenv()
-
-    # get Steam api key from .env variable
-    steam_api_key = os.getenv("STEAM_API_KEY")
-
-    # get limit of concurrent http requests from .env variable
-    requests_limit = int(os.getenv("REQUESTS_LIMIT"))
-
-    if not requests_limit or not steam_api_key:
-        raise Exception("Missing one or more environment variables.")
 
     # open csv file and read the content
     df: pandas.DataFrame = pandas.read_csv("packages.csv")
