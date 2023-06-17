@@ -5,12 +5,11 @@ import sqlite3
 import os
 import concurrent.futures
 import time
+from dotenv import load_dotenv
 
-# using if __name__ == "__main__" is a way of storing code that should only run
-# when this file is executed as a script
 
-if __name__ == "__main__":
-    """This script reads the csv file, gets the package data from the steam api
+def main():
+    """This reads the csv file, gets the package data from the steam api
     and saves it to a sqlite database. It uses multithreading to speed up the
     process. The number of threads is defined by the REQUESTS_LIMIT variable in
     the .env file, where you can also find the STEAM_API_KEY variable.If the
@@ -69,13 +68,14 @@ if __name__ == "__main__":
     # time counter
     start_time = time.time()
 
+    # load environment variables from .env file
+    load_dotenv()
+
     # get steam api key from .env variable
-    # key = os.getenv("STEAM_API_KEY")
-    key = "BDB2A198B47816D64022208E4C93BCFA"
+    key = os.getenv("STEAM_API_KEY")
 
     # get limit of concurrent http requests from .env variable
-    # requests_limit = os.getenv("REQUESTS_LIMIT")
-    requests_limit = 5
+    requests_limit = int(os.getenv("REQUESTS_LIMIT"))
 
     # open csv file and read the content
     df: pandas.DataFrame = pandas.read_csv("packages.csv")
@@ -146,3 +146,9 @@ if __name__ == "__main__":
     # print the time it took to run the script
     execution_time: float = time.time() - start_time
     print(f"Finished! This took {execution_time} seconds.")
+
+
+# using if __name__ == "__main__" is a way of storing code that should only run
+# when this file is executed as a script, and not when it is imported as a module
+if __name__ == "__main__":
+    main()
