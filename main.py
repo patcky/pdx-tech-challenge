@@ -43,11 +43,9 @@ def save_package_data_to_db(package_id: int, result) -> None:
 
     # for each app in the package, save the app id and name in the apps table
     for app in data["apps"]:
-        app_id = app["id"]
-        app_name = app["name"]
         conn.execute(
             "INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
-            (app_id, app_name, package_id))
+            (app["id"], app["name"], package_id))
 
 if __name__ == '__main__':
     # time counter
@@ -71,8 +69,10 @@ if __name__ == '__main__':
     # create sqlite database and connect to it #
     conn: sqlite3.Connection = sqlite3.connect("steam.db")
 
-    # create table for storing package data, with id as primary key and price, platforms and release_date as json columns. #
-    # still not sure if it's better to separate everything in different tables, since the challenge didn't say anything about it
+    # create table for storing package data, with id as primary key and price,
+    # platforms and release_date as json columns. #
+    # still not sure if it's better to separate everything in different tables,
+    # since the challenge didn't say anything about it
     conn.execute(
         """CREATE TABLE IF NOT EXISTS packages
         (
@@ -84,7 +84,8 @@ if __name__ == '__main__':
         )"""
     )
 
-    # create table for storing apps data, with id and name as columns and package_id as foreign key to the packages table. #
+    # create table for storing apps data, with id and name as columns and
+    # package_id as foreign key to the packages table. #
     # one package can have many apps but an app can only belong to one package #
     conn.execute(
         """CREATE TABLE IF NOT EXISTS apps
@@ -100,19 +101,21 @@ if __name__ == '__main__':
         concurrent_http_requests = []
         concurrent_db_inserts = []
 
-        # for each row of the csv, excluding the header, do a get request to "http://store.steampowered.com/api/salepage/" passing the package id as a parameter in the request.
+        # iterate over the df rows and get the package data from the steam api #
         for index, row in df.iterrows():
             print(index)
-            # impose a limit of 5 rows for the iteration, since there is a limit of requests per 5 minutes in the api
+            # impose a limit of 5 rows for the iteration, since there is a limit
+            # of 200 requests per 5 minutes in the api #
             if index > 0 and index % requests_limit == 0:
-                break
-                # when done, update to 200 requests per 5 minutes
+                break # remove this line when in production mode
                 time.sleep(300)
-            # get the response and parse it as json
+
+            # create a concurrent task to get the package data from the steam api #
             concurrent_http_requests.append(
                 executor.submit(get_package_data,
                                 package_id=int(row["PACKAGEID"])))
 
+        # wait for all concurrent tasks to finish  and save the results to the database #
         for http_request in concurrent.futures.as_completed(concurrent_http_requests):
             result = http_request.result()
             package_id = next(iter(result))
