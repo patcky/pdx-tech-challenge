@@ -6,48 +6,60 @@ import os
 import concurrent.futures
 import time
 
-def get_package_data(package_id: int) -> dict:
-    """Get package data from steam api and return it as a dict"""
-    response = requests.get("http://store.steampowered.com/api/packagedetails/",
-                        params={
-                            "packageids": package_id,
-                            "key": key
-                        })
 
-    if response.status_code in [range(400, 499)]:
-        raise Exception("Error getting package data from steam api - Bad request")
+if __name__ == "__main__":
+    """This script reads the csv file, gets the package data from the steam api
+    and saves it to a sqlite database. It uses multithreading to speed up the
+    process. The number of threads is defined by the REQUESTS_LIMIT variable in
+    the .env file, where you can also find the STEAM_API_KEY variable.If the
+    package id is present but the data is not in the steam API, it saves an
+    entry to the database with an error."""
 
-    elif response.status_code in [range(500, 599)]:
-        raise Exception("Error getting package data from steam api - Server error")
+    def get_package_data(package_id: int) -> dict:
+        """Get package data from steam api and return it as a dict"""
+        response = requests.get(
+            "http://store.steampowered.com/api/packagedetails/",
+            params={"packageids": package_id, "key": key},
+        )
 
-    return response.json()
+        if response.status_code in [range(400, 499)]:
+            raise Exception("Error getting package data from steam api - Bad request")
 
+        elif response.status_code in [range(500, 599)]:
+            raise Exception("Error getting package data from steam api - Server error")
 
-def save_package_data_to_db(package_id: int, result) -> None:
-    # if the package id is not found, the api returns success: False
-    if not result[package_id]["success"]:
-        # save an entry to db as an error
+        return response.json()
+
+    def save_package_data_to_db(package_id: int, result) -> None:
+        # if the package id is not found, the api returns success: False
+        if not result[package_id]["success"]:
+            # save an entry to db as an error
+            conn.execute(
+                "INSERT INTO packages (id, error) VALUES (?, ?)", (package_id, True)
+            )
+            return
+
+        data = result[package_id]["data"]
+
+        # save apps, price, platforms, release_date in the respective tables, incrementally
+        # the id of the package is the same as the package id in the csv
         conn.execute(
-            "INSERT INTO packages (id, error) VALUES (?, ?)",
-            (package_id, True))
-        return
+            "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
+            (
+                package_id,
+                json.dumps(data["price"]),
+                json.dumps(data["platforms"]),
+                json.dumps(data["release_date"]),
+            ),
+        )
 
-    data = result[package_id]["data"]
+        # for each app in the package, save the app id and name in the apps table
+        for app in data["apps"]:
+            conn.execute(
+                "INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
+                (app["id"], app["name"], package_id),
+            )
 
-    # save apps, price, platforms, release_date in the respective tables, incrementally
-    # the id of the package is the same as the package id in the csv
-    conn.execute(
-        "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
-        (package_id, json.dumps(data["price"]), json.dumps(
-            data["platforms"]), json.dumps(data["release_date"])))
-
-    # for each app in the package, save the app id and name in the apps table
-    for app in data["apps"]:
-        conn.execute(
-            "INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
-            (app["id"], app["name"], package_id))
-
-if __name__ == '__main__':
     # time counter
     start_time = time.time()
 
@@ -107,27 +119,25 @@ if __name__ == '__main__':
             # impose a limit of 5 rows for the iteration, since there is a limit
             # of 200 requests per 5 minutes in the api #
             if index > 0 and index % requests_limit == 0:
-                break # remove this line when in production mode
+                break  # remove this line when in production mode
                 time.sleep(300)
 
             # create a concurrent task to get the package data from the steam api #
             concurrent_http_requests.append(
-                executor.submit(get_package_data,
-                                package_id=int(row["PACKAGEID"])))
+                executor.submit(get_package_data, package_id=int(row["PACKAGEID"]))
+            )
 
         # wait for all concurrent tasks to finish  and save the results to the database #
-        for http_request in concurrent.futures.as_completed(concurrent_http_requests):
-            result = http_request.result()
-            package_id = next(iter(result))
+        for http_response in concurrent.futures.as_completed(concurrent_http_requests):
+            package_id = next(iter(http_response.result()))
+            save_package_data_to_db(
+                package_id=package_id, result=http_response.result()
+            )
 
-            save_package_data_to_db(package_id=package_id, result=result)
-
-    # commit changes to the database #
+    # commit changes to the database and close connection #
     conn.commit()
-
-    # close connection to the database #
     conn.close()
 
     # print the time it took to run the script
     execution_time: float = time.time() - start_time
-    print(f'Finished! This took {execution_time} seconds.')
+    print(f"Finished! This took {execution_time} seconds.")
