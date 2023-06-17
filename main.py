@@ -1,11 +1,13 @@
+import concurrent.futures
 import json
+import os
+import time
+import logging
+
+from dotenv import load_dotenv
 import pandas
 import requests
 import sqlite3
-import os
-import concurrent.futures
-import time
-from dotenv import load_dotenv
 
 
 def get_package_data(package_id: int, steam_api_key: str) -> dict:
@@ -16,15 +18,17 @@ def get_package_data(package_id: int, steam_api_key: str) -> dict:
     )
 
     if response.status_code in [range(400, 499)]:
+        # add logging here
         raise Exception("Error getting package data from Steam API - Bad request")
 
     elif response.status_code in [range(500, 599)]:
+        # add logging here
         raise Exception("Error getting package data from Steam API - Server error")
 
     return response.json()
 
 
-def save_package_data_to_db(package_id: int, result, conn) -> None:
+def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connection) -> None:
     """Save the result of the http request to sqlite database. If the
     package data was not found by the Steam API, save an entry to the
     database with an error."""
@@ -37,17 +41,25 @@ def save_package_data_to_db(package_id: int, result, conn) -> None:
         )
         return
 
-    data = result[package_id]["data"]
+    data = result[package_id]["data"] # create an object to store the data
+
 
     # save apps, price, platforms, release_date in the respective tables, incrementally
     # the id of the package is the same as the package id in the csv
     conn.execute(
-        "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
+        "INSERT INTO packages (id, price_currency, price_initial, price_final, price_discount_percent, price_individual, platforms_windows, platforms_mac, platforms_linux, release_date_coming_soon, release_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             package_id,
-            json.dumps(data["price"]),
-            json.dumps(data["platforms"]),
-            json.dumps(data["release_date"]),
+            data["price"]["currency"],
+            data["price"]["initial"],
+            data["price"]["final"],
+            data["price"]["discount_percent"],
+            data["price"]["individual"],
+            data["platforms"]["windows"],
+            data["platforms"]["mac"],
+            data["platforms"]["linux"],
+            data["release_date"]["coming_soon"],
+            data["release_date"]["date"],
         ),
     )
 
@@ -79,6 +91,9 @@ def main():
     # get limit of concurrent http requests from .env variable
     requests_limit = int(os.getenv("REQUESTS_LIMIT"))
 
+    if not requests_limit or not steam_api_key:
+        raise Exception("Missing one or more environment variables.")
+
     # open csv file and read the content
     df: pandas.DataFrame = pandas.read_csv("packages.csv")
 
@@ -97,9 +112,16 @@ def main():
         """CREATE TABLE IF NOT EXISTS packages
         (
             id INTEGER PRIMARY KEY,
-            price JSON,
-            platforms JSON,
-            release_date JSON,
+            price_currency TEXT,
+            price_initial INTEGER,
+            price_final INTEGER,
+            price_discount_percent INTEGER,
+            price_individual INTEGER,
+            platforms_windows BOOLEAN,
+            platforms_mac BOOLEAN,
+            platforms_linux BOOLEAN,
+            release_date_coming_soon BOOLEAN,
+            release_date DATE,
             error BOOLEAN DEFAULT FALSE
         )"""
     )
