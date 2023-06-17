@@ -3,7 +3,7 @@ import pandas
 import requests
 import sqlite3
 import os
-import asyncio
+import concurrent.futures
 import time
 
 # get steam api key from .env variable
@@ -34,47 +34,64 @@ conn.execute(
     "CREATE TABLE IF NOT EXISTS apps (id INTEGER PRIMARY KEY, name TEXT, package_id INTEGER, FOREIGN KEY(package_id) REFERENCES packages(id))"
 )
 
-# implement async requests to the code
-# https://stackoverflow.com/zquestions/45216663/how-to-make-multiple-requests-using-asyncio-in-python-3-6
-
-# for each row of the csv, excluding the header, do a get request to "http://store.steampowered.com/api/salepage/" passing the package id as a parameter in the request.
-for index, row in df.iterrows():
-    print(index)
-    package_id = int(row["PACKAGEID"])
-    # impose a limit of 5 rows for the iteration, since there is a limit of requests per 5 minutes in the api
-    if index > 0 and index % 5 == 0: # type: ignore
-        break
-    # get the response and parse it as json
+def get_package_data(package_id: int) -> dict:
+    """Get package data from steam api and return it as a dict"""
     response = requests.get("http://store.steampowered.com/api/packagedetails/",
-                     params={
-                         "packageids": package_id,
-                         "key": key
-                     }).json()[str(package_id)]
-    print(response)
-    # if the package id is not found, the api returns success: False
-    if not response["success"]:
-        # save an entry to db as an error
-        continue
-    data = response["data"]
+                        params={
+                            "packageids": package_id,
+                            "key": key
+                        }).json()
+    return response
 
-    #print(data)
-    apps = data["apps"]
-    price = data["price"]
-    platforms = data["platforms"]
-    release_date = data["release_date"]
+with concurrent.futures.ThreadPoolExecutor() as executor:
 
-    # save apps, price, platforms, release_date in the respective tables, incrementally
-    # the id of the package is the same as the package id in the csv
-    conn.execute(
-        "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
-        (package_id, json.dumps(price), json.dumps(platforms),
-         json.dumps(release_date)))
-    # for each app in the package, save the app id and name in the apps table
-    for app in apps:
-        app_id = app["id"]
-        app_name = app["name"]
-        conn.execute("INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
-                        (app_id, app_name, package_id))
+    futures = []
+
+    # for each row of the csv, excluding the header, do a get request to "http://store.steampowered.com/api/salepage/" passing the package id as a parameter in the request.
+    for index, row in df.iterrows():
+        print(index)
+
+        # impose a limit of 5 rows for the iteration, since there is a limit of requests per 5 minutes in the api
+        if index > 0 and index % 5 == 0: # type: ignore
+            break
+        # get the response and parse it as json
+        futures.append(executor.submit(get_package_data,
+                                       package_id=int(row["PACKAGEID"])))
+
+    for future in concurrent.futures.as_completed(futures):
+        print(future.result())
+        package_id = next(iter(future.result()))
+        # if the package id is not found, the api returns success: False
+        if not future.result()[package_id]["success"]:
+            # save an entry to db as an error
+            conn.execute(
+                "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
+                (package_id, "", "", ""))
+            continue
+
+        data = future.result()[package_id]["data"]
+
+        #print(data)
+        apps = data["apps"]
+        price = data["price"]
+        platforms = data["platforms"]
+        release_date = data["release_date"]
+
+        # save apps, price, platforms, release_date in the respective tables, incrementally
+        # the id of the package is the same as the package id in the csv
+        conn.execute(
+            "INSERT INTO packages (id, price, platforms, release_date) VALUES (?, ?, ?, ?)",
+            (package_id, json.dumps(price), json.dumps(platforms),
+            json.dumps(release_date)))
+        # for each app in the package, save the app id and name in the apps table
+        for app in apps:
+            app_id = app["id"]
+            app_name = app["name"]
+            conn.execute("INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
+                            (app_id, app_name, package_id))
+
+    for future in concurrent.futures.as_completed(futures):
+        print(future.result())
 
 conn.commit()
 
