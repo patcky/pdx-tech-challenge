@@ -21,3 +21,33 @@ Release dates
 - The result should be loaded into SQlite tables, assuming that the data should be loaded incrementally.
 - The final tables should be provided both as SQLite tables in the script but also CSV files.
 - Part of the solution should be to think about how the data should be stored in a good way.
+
+
+# Package information retrieval - TODOs:
+
+Docs:
+- mention multithreading in documentation
+- explain that this was done on a mac so it might not work on other OS platforms
+because unlike VMs, Docker still depends on the underlying OS for some resources
+- compare to venv, which you can also use, but also doesn't guarantee successfull
+replication on other OS
+- mention thoughts about the schema in the documentation
+
+Logging and exception treatment:
+- add more typing support
+- check if there is key and requests_limit and raise exception if not
+- use try/except
+- log errors with a lib
+- add tests
+
+Facilitate setup and running:
+- do requirements.txt
+- version the libs and explain why in the docs
+- write a docker-compose file with instructions on how to build the image and run it
+
+Refactor:
+- check comments that can be replaced with more descriptive method names
+- change the json fields to individual fields and comment why
+- separate DB file with class functions with all db init and queries abstracted away
+- separate env file with configuration
+- separate one file for API calls
