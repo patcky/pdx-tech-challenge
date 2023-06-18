@@ -1,3 +1,4 @@
+# Standard library imports
 import concurrent.futures
 import json
 import os
@@ -5,15 +6,20 @@ import time
 from datetime import datetime
 import logging
 
-from dotenv import load_dotenv
+# Third party imports
 import pandas
 import requests
 import sqlite3
 
-from get-package-data import get_package_data
-from load-env import load_config
+# Local application imports
+from get_package_data import get_package_data
+from load_env import load_config
+from db_connection import delete_db_if_exists, create_db_if_not_exists, create_tables
 
-def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connection) -> None:
+
+def save_package_data_to_db(
+    package_id: int, result: dict, conn: sqlite3.Connection
+) -> None:
     """Save the result of the http request to sqlite database. If the
     package data was not found by the Steam API, save an entry to the
     database with an error."""
@@ -26,8 +32,7 @@ def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connect
         )
         return
 
-    data = result[package_id]["data"] # create an object to store the data
-
+    data = result[package_id]["data"]  # create an object to store the data
 
     # save apps, price, platforms, release_date in the respective tables, incrementally
     # the id of the package is the same as the package id in the csv
@@ -44,7 +49,10 @@ def save_package_data_to_db(package_id: int, result: dict, conn: sqlite3.Connect
             data["platforms"]["mac"],
             data["platforms"]["linux"],
             data["release_date"]["coming_soon"],
-            datetime.strptime(data["release_date"]["date"], "%Y-%m-%d"),
+            # convert the date to the format YYYY-MM-DD to be able to sort it easily
+            datetime.strptime(data["release_date"]["date"], "%d %b, %Y").strftime(
+                "%Y-%m-%d"
+            ),
         ),
     )
 
@@ -64,53 +72,24 @@ def main():
     package id is present but the data is not in the Steam API, it saves an
     entry to the database with an error."""
 
+    config = load_config()
+
+    steam_api_key = config["STEAM_API_KEY"]
+    requests_limit = config["REQUESTS_LIMIT"]
+    environment = config["ENVIRONMENT"]
+    csv_file_path = config["CSV_FILE_PATH"]
+    db_path = config["DB_PATH"]
+
     # time counter
     start_time = time.time()
 
     # open csv file and read the content
-    df: pandas.DataFrame = pandas.read_csv("packages.csv")
+    df: pandas.DataFrame = pandas.read_csv(csv_file_path)
 
-    # delete database if it exists. doing this for debugging purposes.
-    if os.path.exists("steam.db"):
-        os.remove("steam.db")
-
-    # create sqlite database and connect to it #
-    conn: sqlite3.Connection = sqlite3.connect("steam.db")
-
-    # create table for storing package data, with id as primary key and price,
-    # platforms and release_date as json columns. #
-    # still not sure if it's better to separate everything in different tables,
-    # since the challenge didn't say anything about it
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS packages
-        (
-            id INTEGER PRIMARY KEY,
-            price_currency TEXT,
-            price_initial INTEGER,
-            price_final INTEGER,
-            price_discount_percent INTEGER,
-            price_individual INTEGER,
-            platforms_windows BOOLEAN,
-            platforms_mac BOOLEAN,
-            platforms_linux BOOLEAN,
-            release_date_coming_soon BOOLEAN,
-            release_date DATE,
-            error BOOLEAN DEFAULT FALSE
-        )"""
-    )
-
-    # create table for storing apps data, with id and name as columns and
-    # package_id as foreign key to the packages table. #
-    # one package can have many apps but an app can only belong to one package #
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS apps
-        (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            package_id INTEGER,
-            FOREIGN KEY(package_id) REFERENCES packages(id)
-        )"""
-    )
+    # delete the database if it exists
+    delete_db_if_exists(db_path)
+    conn = create_db_if_not_exists(db_path)
+    create_tables(conn)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         concurrent_http_requests = []
