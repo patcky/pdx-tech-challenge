@@ -1,19 +1,51 @@
 # Standard library imports
 import concurrent.futures
-import json
-import os
 import time
 import logging
 
 # Third party imports
 import pandas
-import requests
-import sqlite3
 
 # Local application imports
-from get_package_data import get_package_data
+from steam_API_adapter import SteamApiAdapter as adapter
 from load_env import load_config
-from db_connection import delete_db_if_exists, create_db_if_not_exists, create_tables, save_package_data_to_db
+from db_connection import (
+    delete_db_if_exists,
+    create_db_if_not_exists,
+    create_tables,
+    save_package_data_to_db,
+    commit_changes_and_close_connection,
+)
+
+
+def thread_executor(df, config):
+    steam_api_key = config["STEAM_API_KEY"]
+    requests_limit = config["REQUESTS_LIMIT"]
+    environment = config["ENVIRONMENT"]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        concurrent_http_requests = []
+        concurrent_db_inserts = []
+
+        # iterate over the df rows and get the package data from the Steam api #
+        for index, row in df.iterrows():
+            logging.info(f">{index}")
+            # limit to 5 requests per 5 minutes according to the api #
+            if index > 0 and index % requests_limit == 0:
+                if environment == "development":
+                    break
+                time.sleep(300)
+
+            # create a concurrent task to get the package data from the Steam api #
+            concurrent_http_requests.append(
+                executor.submit(
+                    adapter.get_package_data,
+                    package_id=int(row["PACKAGEID"]),
+                    steam_api_key=steam_api_key,
+                )
+            )
+
+        return concurrent.futures.as_completed(concurrent_http_requests)
 
 
 def main():
@@ -43,37 +75,15 @@ def main():
     conn = create_db_if_not_exists(db_path)
     create_tables(conn)
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        concurrent_http_requests = []
-        concurrent_db_inserts = []
-
-        # iterate over the df rows and get the package data from the Steam api #
-        for index, row in df.iterrows():
-            print(index)
-            # limit to 5 requests per 5 minutes according to the api #
-            if index > 0 and index % requests_limit == 0:
-                break  # remove this line when in production mode
-                time.sleep(300)
-
-            # create a concurrent task to get the package data from the Steam api #
-            concurrent_http_requests.append(
-                executor.submit(
-                    get_package_data,
-                    package_id=int(row["PACKAGEID"]),
-                    steam_api_key=steam_api_key,
-                )
-            )
-
-        # wait for all concurrent tasks to finish  and save the results to the database #
-        for http_response in concurrent.futures.as_completed(concurrent_http_requests):
-            package_id = next(iter(http_response.result()))
-            save_package_data_to_db(
-                package_id=package_id, result=http_response.result(), conn=conn
-            )
+    responses = thread_executor(df, config)
+    for http_response in responses:
+        package_id = next(iter(http_response.result()))
+        save_package_data_to_db(
+            package_id=package_id, result=http_response.result(), conn=conn
+        )
 
     # commit changes to the database and close connection #
-    conn.commit()
-    conn.close()
+    commit_changes_and_close_connection(conn)
 
     # print the time it took to run the script
     execution_time: float = time.time() - start_time

@@ -2,6 +2,11 @@ import sqlite3
 import os
 from datetime import datetime
 
+def commit_changes_and_close_connection(conn):
+    """Commit changes to the database and close connection."""
+    conn.commit()
+    conn.close()
+
 def delete_db_if_exists(db_path):
     """Delete the sqlite database if it exists."""
     if os.path.exists(db_path):
