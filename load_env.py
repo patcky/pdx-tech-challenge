@@ -26,6 +26,8 @@ def load_config() -> dict:
             "CSV_FILE_PATH": os.environ.get("CSV_FILE_PATH"),
             "DB_PATH": os.environ.get("DB_PATH"),
         }
+        if config["ENVIRONMENT"] == "development":
+            turn_on_logging_for_development_env()
     except KeyError as e:
         logging.info(e)
         raise

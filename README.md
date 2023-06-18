@@ -34,6 +34,13 @@ replication on other OS
 - mention thoughts about the schema in the documentation
 - version the libs and explain why in the docs
 - change the json fields to individual fields and comment why
+- It uses multithreading to speed up the
+    process. The number of threads is defined by the \`REQUESTS_LIMIT\` variable in
+    the .env file, where you can also find the \`STEAM_API_KEY\` variable.If the
+    package id is present but the data is not in the Steam API, it saves an
+    entry to the database with an error.
+- using if \`__name__ == "__main__"\` is a way of storing code that should only run when the file is executed as a script, and not when it is imported as a module
+- limit to 5 requests per 5 minutes according to the api
 
 Logging and exception treatment:
 - add more typing support
