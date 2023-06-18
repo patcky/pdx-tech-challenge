@@ -1,10 +1,12 @@
-import requests
+import concurrent.futures
 import json
 import logging
-import concurrent.futures
+import requests
+
+import pandas
 
 class SteamApiAdapter():
-    def __init__(self, params):
+    def __init__(self, params: dict):
         self.steam_api_key: str = params["steam_api_key"]
         self.requests_limit: int = params["requests_limit"]
         self.environment: int = params["environment"]
@@ -42,7 +44,7 @@ class SteamApiAdapter():
 
         return response.json()
 
-    def thread_executor(self, df):
+    def thread_executor(self, df: pandas.DataFrame):
         """Execute the HTTP requests concurrently using threads."""
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
