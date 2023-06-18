@@ -44,3 +44,4 @@ Facilitate setup and running:
 
 Refactor:
 - separate one file for API calls
+- use models for validation of data
