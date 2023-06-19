@@ -3,9 +3,9 @@ import logging
 
 import pandas
 
-from steam_API_adapter import SteamApiAdapter
+from steam_api_adapter import SteamApiAdapter
 from load_env import Config
-from db_connection import DatabaseConnection
+from db_connection import DBConnection
 from models.package import Package
 from models.app import App
 
@@ -19,7 +19,7 @@ def main():
     config = Config()
 
     df: pandas.DataFrame = pandas.read_csv(config.csv_file_path)
-    db = DatabaseConnection(config.db_path)
+    db = DBConnection(config.db_path)
 
     if config.environment == "development":
         db.delete_db_if_exists()

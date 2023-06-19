@@ -2,7 +2,7 @@ import sqlite3
 import os
 import logging
 
-class DatabaseConnection(object):
+class DBConnection(object):
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.conn = None
