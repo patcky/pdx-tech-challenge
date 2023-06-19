@@ -40,4 +40,8 @@ As an example, I'd like to change the method \`create_tables\` in \`db_connectio
 
 - Using multiple SQL inserts in one command instead of individually inserting each row - I am aware that there is a way of inserting multiple rows in a table with only one command. I did not have enough time to implement this, as it would involve refactoring other parts of my code again.
 
-- Writing more tests - and automating them.
+- Writing more tests - and automating them. The more tests, the better.
+
+- Using a clear pattern for structuring the code - When I started refactoring this app, I tried to go for something "Active Record-ish". Clearly, it takes a while to build it, if you have not already started building your code using it.
+"Why didn't you use it from the beginning, then?"
+I didn't want to have many external dependencies in my code and I also wanted to show that I had understanding about how this pattern works and that I can also do SQL queries "by hand" if needed.
