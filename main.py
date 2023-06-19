@@ -4,50 +4,45 @@ import logging
 import pandas
 
 from steam_API_adapter import SteamApiAdapter
-from load_env import load_config
-from db_connection import (
-    delete_db_if_exists,
-    create_db_if_not_exists,
-    create_tables,
-    save_package_data_to_db,
-    commit_changes_and_close_connection,
-)
+from load_env import Config
+from db_connection import DatabaseConnection
+from models.package import Package
+from models.app import App
 
 
 def main():
     """Read the CSV file, get the package data from the Steam API
     and save it to an Sqlite3 database."""
 
-    config = load_config()
-
-    steam_api_key = config["STEAM_API_KEY"]
-    requests_limit = config["REQUESTS_LIMIT"]
-    environment = config["ENVIRONMENT"]
-    csv_file_path = config["CSV_FILE_PATH"]
-    db_path = config["DB_PATH"]
-
     start_time = time.time()
 
-    df: pandas.DataFrame = pandas.read_csv(csv_file_path)
+    config = Config()
 
-    delete_db_if_exists(db_path)
-    conn = create_db_if_not_exists(db_path)
-    create_tables(conn)
+    df: pandas.DataFrame = pandas.read_csv(config.csv_file_path)
+    db = DatabaseConnection(config.db_path)
 
-    adapter_params = {
-        "steam_api_key": steam_api_key,
-        "requests_limit": requests_limit,
-        "environment": environment,
-    }
-    adapter = SteamApiAdapter(adapter_params)
+    if config.environment == "development":
+        db.delete_db_if_exists()
+
+    db.create_db_if_not_exists()
+    db.create_tables()
+
+    adapter = SteamApiAdapter(config.adapter_config())
     responses = adapter.thread_executor(df)
     for http_response in responses:
-        package_id = next(iter(http_response.result()))
-        save_package_data_to_db(
-            package_id=package_id, result=http_response.result(), conn=conn
-        )
+        response = http_response.result()
+        package = Package(params=response)
+        package.save(db=db)
+        if package.error:
+            continue
 
-    commit_changes_and_close_connection(conn)
+        apps = response.get(next(iter(response))).get("data").get("apps")
+        for app in apps:
+            app["package_id"] = package.id
+            App(params=app).save(db=db)
+
+    db.commit_changes()
+    db.close_connection()
 
     execution_time: float = time.time() - start_time
     print(f"Finished! This took {execution_time} seconds.")

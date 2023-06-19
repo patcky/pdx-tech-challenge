@@ -1,105 +1,99 @@
 import sqlite3
 import os
-from datetime import datetime
+import logging
 
-def commit_changes_and_close_connection(conn):
-    """Commit changes to the database and close connection."""
-    conn.commit()
-    conn.close()
+class DatabaseConnection(object):
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.conn = None
 
-def delete_db_if_exists(db_path):
-    """Delete the sqlite database if it exists."""
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    def create_db_if_not_exists(self):
+        """Create the sqlite database if it doesn't exist and return a connection to it."""
+        try:
+            conn: sqlite3.Connection = sqlite3.connect(self.db_path)
+            self.conn = conn
+        except:
+            logging.error("Error creating db.")
+            raise
 
+    def save_object_to_db(self, params: dict):
+        """Save an object to the database."""
+        try:
+            table_name = params.get("table_name")
+            del params["table_name"]
 
-def create_db_if_not_exists(db_path):
-    """Create the sqlite database if it doesn't exist and return a connection to it."""
+            for key, value in params.items():
+                if value is None:
+                    setattr(self, key, "NULL")
 
-    # create sqlite database and connect to it #
-    conn: sqlite3.Connection = sqlite3.connect(db_path)
-    return conn
+            query = (
+                f"INSERT INTO {table_name} ("
+                + ", ".join(params.keys())
+                + ") VALUES ("
+                + ", ".join(["?"] * len(params.keys()))
+                + ")"
+            )
+            self.conn.execute(query, tuple(params.values()))
+        except:
+            logging.error("Error saving object to db.")
+            raise
 
-def create_tables(conn):
-    """Create the tables in the sqlite database."""
-    try:
-        # create table for storing package data
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS packages
-            (
-                id INTEGER PRIMARY KEY,
-                price_currency TEXT,
-                price_initial INTEGER,
-                price_final INTEGER,
-                price_discount_percent INTEGER,
-                price_individual INTEGER,
-                platforms_windows BOOLEAN,
-                platforms_mac BOOLEAN,
-                platforms_linux BOOLEAN,
-                release_date_coming_soon BOOLEAN,
-                release_date DATE,
-                error BOOLEAN DEFAULT FALSE
-            )"""
-        )
+    def commit_changes(self):
+        """Commit changes to the database."""
+        try:
+            self.conn.commit()
+        except:
+            logging.error("Error committing changes to db.")
+            raise
 
-        # create table for storing apps data, with a foreign key to the packages table.
-        # one package can have many apps but an app can only belong to one package #
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS apps
-            (
-                id INTEGER PRIMARY KEY,
-                name TEXT,
-                package_id INTEGER,
-                FOREIGN KEY(package_id) REFERENCES packages(id)
-            )"""
-        )
+    def delete_db_if_exists(self):
+        """Delete the sqlite database if it exists."""
+        try:
+            if os.path.exists(self.db_path):
+                os.remove(self.db_path)
+        except:
+            logging.error("Error deleting db.")
+            raise
 
-    except sqlite3.Error as e:
-        logging.error("Error creating tables.", e)
-        raise e
+    def close_connection(self):
+        """Close the connection to the database."""
+        try:
+            self.conn.close()
+        except:
+            logging.error("Error closing db connection.")
+            raise
 
-def save_package_data_to_db(
-    package_id: int, result: dict, conn: sqlite3.Connection
-) -> None:
-    """Save the result of the http request to sqlite database. If the
-    package data was not found by the Steam API, save an entry to the
-    database with an error."""
+    def create_tables(self):
+        """Create the tables in the sqlite database."""
+        try:
+            self.conn.execute(
+                """CREATE TABLE IF NOT EXISTS packages
+                (
+                    id INTEGER PRIMARY KEY,
+                    price_currency TEXT,
+                    price_initial INTEGER,
+                    price_final INTEGER,
+                    price_discount_percent INTEGER,
+                    price_individual INTEGER,
+                    platforms_windows BOOLEAN,
+                    platforms_mac BOOLEAN,
+                    platforms_linux BOOLEAN,
+                    release_date_coming_soon BOOLEAN,
+                    release_date_date DATE,
+                    error BOOLEAN DEFAULT FALSE
+                )"""
+            )
 
-    # if the package id is not found, the api returns success: False
-    if not result[package_id]["success"]:
-        # save an entry to db as an error and skip the rest of the function
-        conn.execute(
-            "INSERT INTO packages (id, error) VALUES (?, ?)", (package_id, True)
-        )
-        return
+            self.conn.execute(
+                """CREATE TABLE IF NOT EXISTS apps
+                (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    package_id INTEGER,
+                    FOREIGN KEY(package_id) REFERENCES packages(id)
+                )"""
+            )
 
-    data = result[package_id]["data"]  # create an object to store the data
-
-    # save apps, price, platforms, release_date in the respective tables, incrementally
-    # the id of the package is the same as the package id in the csv
-    conn.execute(
-        "INSERT INTO packages (id, price_currency, price_initial, price_final, price_discount_percent, price_individual, platforms_windows, platforms_mac, platforms_linux, release_date_coming_soon, release_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            package_id,
-            data["price"]["currency"],
-            data["price"]["initial"],
-            data["price"]["final"],
-            data["price"]["discount_percent"],
-            data["price"]["individual"],
-            data["platforms"]["windows"],
-            data["platforms"]["mac"],
-            data["platforms"]["linux"],
-            data["release_date"]["coming_soon"],
-            # convert the date to the format YYYY-MM-DD to be able to sort it easily
-            datetime.strptime(data["release_date"]["date"], "%d %b, %Y").strftime(
-                "%Y-%m-%d"
-            ),
-        ),
-    )
-
-    # for each app in the package, save the app id and name in the apps table
-    for app in data["apps"]:
-        conn.execute(
-            "INSERT INTO apps (id, name, package_id) VALUES (?, ?, ?)",
-            (app["id"], app["name"], package_id),
-        )
+        except:
+            logging.error("Error creating tables.")
+            raise

@@ -43,8 +43,8 @@ replication on other OS
 - limit to 5 requests per 5 minutes according to the api
 
 Logging and exception treatment:
-- add more typing support
 - add tests
+- add more typing support
 
 Facilitate setup and running:
 - write a docker-compose file with instructions on how to build the image and run it

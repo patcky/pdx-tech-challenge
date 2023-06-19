@@ -7,9 +7,9 @@ import pandas
 
 class SteamApiAdapter():
     def __init__(self, params: dict):
-        self.steam_api_key: str = params["steam_api_key"]
-        self.requests_limit: int = params["requests_limit"]
-        self.environment: int = params["environment"]
+        self.steam_api_key: str = params["STEAM_API_KEY"]
+        self.requests_limit: int = params["REQUESTS_LIMIT"]
+        self.environment: int = params["ENVIRONMENT"]
 
     def get_package_data(self, package_id: int) -> dict:
         """Get package data from Steam API and return it as a dict"""

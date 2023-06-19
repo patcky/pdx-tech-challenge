@@ -3,33 +3,37 @@ import logging
 from dotenv import load_dotenv
 from http.client import HTTPConnection
 
-def turn_on_logging_for_development_env() -> None:
-    """Turn on logging for development environment"""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler("debug.log"),
-            logging.StreamHandler(),
-        ],
-    )
-    HTTPConnection.debuglevel = 1
+class Config(object):
+    def __init__(self):
+        try:
+            load_dotenv()
+            self.steam_api_key: str = os.environ.get("STEAM_API_KEY")
+            self.requests_limit: int = int(os.environ.get("REQUESTS_LIMIT"))
+            self.environment: str = os.environ.get("ENVIRONMENT")
+            self.csv_file_path: str = os.environ.get("CSV_FILE_PATH")
+            self.db_path: str = os.environ.get("DB_PATH")
+            if self.environment == "development":
+                self.turn_on_logging_for_development_env()
+        except:
+            logging.error("Error loading config.")
+            raise
 
-def load_config() -> dict:
-    """Load the config from .env file"""
-    load_dotenv()
-    try:
-        config = {
-            "STEAM_API_KEY": os.environ.get("STEAM_API_KEY"),
-            "REQUESTS_LIMIT": int(os.environ.get("REQUESTS_LIMIT")),
-            "ENVIRONMENT": os.environ.get("ENVIRONMENT"),
-            "CSV_FILE_PATH": os.environ.get("CSV_FILE_PATH"),
-            "DB_PATH": os.environ.get("DB_PATH"),
+    def turn_on_logging_for_development_env(self) -> None:
+        """Turn on logging for development environment"""
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.FileHandler("debug.log"),
+                logging.StreamHandler(),
+            ],
+        )
+        HTTPConnection.debuglevel = 1
+
+    def adapter_config(self) -> dict:
+        """Return a dict with the config for the adapter."""
+        return {
+            "STEAM_API_KEY": self.steam_api_key,
+            "REQUESTS_LIMIT": self.requests_limit,
+            "ENVIRONMENT": self.environment,
         }
-        if config["ENVIRONMENT"] == "development":
-            turn_on_logging_for_development_env()
-    except KeyError as e:
-        logging.info(e)
-        raise
-
-    return config
