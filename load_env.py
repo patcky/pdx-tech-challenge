@@ -10,8 +10,10 @@ class Config(object):
             self.steam_api_key: str = os.environ.get("STEAM_API_KEY")
             self.requests_limit: int = int(os.environ.get("REQUESTS_LIMIT"))
             self.environment: str = os.environ.get("ENVIRONMENT")
-            self.csv_file_path: str = os.environ.get("CSV_FILE_PATH")
+            self.input_csv_file_path: str = os.environ.get("INPUT_CSV_FILE_PATH")
             self.db_path: str = os.environ.get("DB_PATH")
+            self.output_packages_csv_file_path: str = os.environ.get("OUTPUT_PACKAGES_CSV_FILE_PATH")
+            self.output_apps_csv_file_path: str = os.environ.get("OUTPUT_APPS_CSV_FILE_PATH")
             if self.environment == "development":
                 self.turn_on_logging_for_development_env()
         except:

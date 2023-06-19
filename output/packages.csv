@@ -1,0 +1,6 @@
+id,error,price_currency,price_initial,price_final,price_discount_percent,price_individual,platforms_windows,platforms_mac,platforms_linux,release_date_coming_soon,release_date_date
+47239,True,,,,,,,,,,
+12570,True,,,,,,,,,,
+165216,False,EUR,1899,1899,0,0,,,,False,2017-04-03
+33940,False,EUR,199,199,0,0,,,,False,2013-11-18
+7974,False,EUR,199,199,0,0,,,,False,2011-04-26

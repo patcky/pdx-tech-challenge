@@ -26,14 +26,14 @@ class DBConnection(object):
                 if value is None:
                     setattr(self, key, "NULL")
 
-            query = (
+            command = (
                 f"INSERT INTO {table_name} ("
                 + ", ".join(params.keys())
                 + ") VALUES ("
                 + ", ".join(["?"] * len(params.keys()))
                 + ")"
             )
-            self.conn.execute(query, tuple(params.values()))
+            self.conn.execute(command, tuple(params.values()))
         except:
             logging.error("Error saving object to db.")
             raise
