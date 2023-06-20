@@ -10,7 +10,7 @@ All dependencies can be found with a version in the `requirements.txt` file.
 
 The app works with multithreading in order to be more efficient in execution time. he number of threads is defined by the `REQUESTS_LIMIT` variable in the .env file, where you can also find the `STEAM_API_KEY` variable. By the API rules, there is a limit of 200 requests every 5 minutes, but for testing pruposes it is recommended to make fewer (5 should be enough to see results).
 
-For some packages, the id is present but the data is not in the Steam API, so the API returns `"success"`: False in the response payload. For these cases, the app saves an entry to the database with an error and all fields as `NULL`.
+For some packages, the id is present but the data is not in the Steam API, so the API returns `"success": False` in the response payload. For these cases, the app saves an entry to the database with an error and all fields as `NULL`.
 
 ## Schema
 
@@ -19,25 +19,33 @@ It is faster and more efficient to query for individual fields than it would be 
 
 This is how the tables should look like:
 
-table packages
-id	int
-error	bool
-price_currency	text
-price_initial	float
-price_final	float
-price_discount_percent	int
-price_individual	float
-platforms_windows	bool
-platforms_mac	bool
-platforms_linux	bool
-release_date_coming_soon	bool
-release_date_date	date
 
-table apps
-id int
-name text
-package_id int - foreign key, references packages
 
+Table: packages
+
+| Column                  | Type     |
+| ----------------------- | -------- |
+| id                      | int      |
+| error                   | bool     |
+| price_currency          | text     |
+| price_initial           | float    |
+| price_final             | float    |
+| price_discount_percent  | int      |
+| price_individual        | float    |
+| platforms_windows       | bool     |
+| platforms_mac           | bool     |
+| platforms_linux         | bool     |
+| release_date_coming_soon| bool     |
+| release_date_date       | date     |
+
+Table: apps
+
+| Column      | Type |
+| ----------- | ---- |
+| id          | int  |
+| name        | text |
+| package_id*  | int  |
+| *(foreign key, references packages) |  |
 
 ## Running the app
 
@@ -49,9 +57,7 @@ Some features that I considered implementing but didn't due to lack of time:
 
 - Writing a docker-compose file with instructions on how to build the image and run it, in order to facilitate setup and running. Note that using Docker doesn't guarantee that it will work on other OS platforms, because unlike virtual machines, Docker still depends on the underlying OS for some resources.
 
-- Abstracting more methods from inside some of the classes - when I started working on this, I first did a few tests on Postman. Then, I wrote a one-page script that did everything and made sure it worked. Only after that, I started refactoring, making tests, separating all the modules and creating classes. I am aware that there is still a lot of space for improvement, specially in terms of organisation of files, separation of concerns and responsibilitiees.
-
-As an example, I'd like to change the method `create_tables` in `db_connection.py`. It should be more abstracted and not just a big hard-coded SQL query. Another example is the function `thread_executor`, inside the `SteamApiAdapter()`. It would be better if this function was somewhere else, possibly in the `helpers.py`.
+- Abstracting more methods from inside some of the classes - when I started working on this, I first did a few tests on Postman. Then, I wrote a one-page script that did everything and made sure it worked. Only after that, I started refactoring, making tests, separating all the modules and creating classes. I am aware that there is still a lot of space for improvement, specially in terms of organisation of files, separation of concerns and responsibilitiees. As an example, I'd like to change the method `create_tables` in `db_connection.py`. It should be more abstracted and not just a big hard-coded SQL query. Another example is the function `thread_executor`, inside the `SteamApiAdapter()`. It would be better if this function was somewhere else, possibly in the `helpers.py`.
 
 - Comments - I started this project commenting on almost every line. Then, I had a discussion about code comments with a friend and he mentioned that he thinks that if you need comments in the code, it means you could probably replace them with more express function and variable names and a clean code. I agreed with him and I believe it is a matter of preference. In this project, I've decided to keep the comments in the documentation. If this was a real application, I would talk to my team and decide together how to implement the comments.
 
