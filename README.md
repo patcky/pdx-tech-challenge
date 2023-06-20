@@ -34,7 +34,7 @@ Some features that I considered implementing but didn't due to lack of time:
 
 - Abstracting more methods from inside some of the classes - when I started working on this, I first did a few tests on Postman. Then, I wrote a one-page script that did everything and made sure it worked. Only after that, I started refactoring, making tests, separating all the modules and creating classes. I am aware that there is still a lot of space for improvement, specially in terms of organisation of files, separation of concerns and responsibilitiees.
 
-As an example, I'd like to change the method \`create_tables\` in \`db_connection.py\`. It should be more abstracted and not just a big hard-coded SQL query.
+As an example, I'd like to change the method \`create_tables\` in \`db_connection.py\`. It should be more abstracted and not just a big hard-coded SQL query. Another example is the function \`thread_executor\`, inside the \`SteamApiAdapter()\`. It would be better if this function was somewhere else, possibly in the \`helpers.py\`.
 
 - Comments - I started this project commenting on almost every line. Then, I had a discussion about code comments with a friend and he mentioned that he thinks that if you need comments in the code, it means you could probably replace them with more express function and variable names and a clean code. I agreed with him and I believe it is a matter of preference. In this project, I've decided to keep the comments in the documentation. If this was a real application, I would talk to my team and decide together how to implement the comments.
 
