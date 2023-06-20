@@ -51,6 +51,18 @@ Table: apps
 
 To run it, make sure that all dependencies are installed and then run the `main.py` file. Using if `__name__ == "__main__"` in the main file is a way of storing code that should only run when the file is executed as a script, and not when it is imported as a module.
 
+You also to add these items on your `.env` file:
+
+```
+STEAM_API_KEY=1CAFBF04B006D16AE985E3D02CCE1334
+REQUESTS_LIMIT=5
+ENVIRONMENT=development
+INPUT_CSV_FILE_PATH=packages.csv
+DB_PATH=steam.db
+OUTPUT_PACKAGES_CSV_FILE_PATH=output/packages.csv
+OUTPUT_APPS_CSV_FILE_PATH=output/apps.csv
+```
+
 ## Technical debt
 
 Some features that I considered implementing but didn't due to lack of time:
