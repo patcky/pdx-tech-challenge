@@ -19,7 +19,24 @@ It is faster and more efficient to query for individual fields than it would be 
 
 This is how the tables should look like:
 
+table packages
+id	int
+error	bool
+price_currency	text
+price_initial	float
+price_final	float
+price_discount_percent	int
+price_individual	float
+platforms_windows	bool
+platforms_mac	bool
+platforms_linux	bool
+release_date_coming_soon	bool
+release_date_date	date
 
+table apps
+id int
+name text
+package_id int - foreign key, references packages
 
 
 ## Running the app
