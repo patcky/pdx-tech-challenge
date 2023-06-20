@@ -68,3 +68,5 @@ Some features that I considered implementing but didn't due to lack of time:
 - Using a clear pattern for structuring the code - When I started refactoring this app, I tried to go for something "Active Record-ish". Clearly, it takes a while to build it, if you have not already started building your code using it.
 "Why didn't you use it from the beginning, then?"
 I didn't want to have many external dependencies in my code and I also wanted to show that I had understanding about how this pattern works and that I can also do SQL queries "by hand" if needed.
+
+- Git history - The commits are an absolute mess. I was planning on squashing them and cherry picking, writing more descriptive messages for the commits, such as `feature: implement multi threading for the http requests`. It would also have been nice to work with branches, instead of doing all the commits on main. The reason why I didn't do this is because it felt like I didn't have enough time to spend on these smaller things since I was focusing on making the application work and refactoring it, but looking back now, it would have spared me work in the end.
